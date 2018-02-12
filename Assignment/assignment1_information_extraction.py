@@ -250,10 +250,7 @@ def main():
     question = question.lower()
     q_trip = cl.extract_triples([preprocess_question(question)])[0]
 
-    # person_name = q_trip.subject.name
-    # print(person_name)
 
-    # print(q_trip.subject.label=='PROPN')
     # (WHO, has, PET)
     # here's one just for dogs
     if q_trip.subject.lower() == 'who' and q_trip.object == 'dog':
@@ -279,15 +276,7 @@ def main():
         answer = '{}, {} does not have a {}.'
         new_subj_doc = q_trip.subject
         people = new_subj_doc[5:].capitalize()
-        #new_subj_doc = nlp(unicode(q_trip.subject))
-        #name_doc = new_subj_doc.char_span(0, len(q_trip.subject))
-       # people = [token.text for token in name_doc if token.ent_type_ == 'PERSON']
-        # print (people)
 
-
-       # s_people = [token.text for token in subj_doc if token.ent_type_ == 'PERSON']
-
-        # for person in persons:
         if people in persons:
             pet = get_persons_pet(people)
             if q_trip.object == pet:
@@ -297,12 +286,7 @@ def main():
 
         else:
             print (answer.format('No', people, q_trip.object))
-#            pet =get_persons_pet(person.name)
- #           if pet and pet.type == 'cat':
-  #              print (answer.format('Yes', person.name, 'cat'))
-#
- #           else:
-  #              print (answer.format('No', person.name, 'cat'))
+
 
 
 if __name__ == '__main__':
