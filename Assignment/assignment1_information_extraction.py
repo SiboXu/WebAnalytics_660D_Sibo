@@ -229,7 +229,7 @@ def main():
 
     for t in triples:
         r = process_relation_triplet(t)
-        print(r)
+    #   print(r)
 
 
     #print(persons)
@@ -275,7 +275,7 @@ def main():
 
     # for this Does John have a cat? question
     # we need to get the subject in the quesion and than, get_person_pet(person.name)==subject's name
-    elif q_trip.subject.startswith('does') and q_trip.object == ('cat' or 'dog'):
+    elif q_trip.subject.startswith('does') and ( q_trip.object == ('cat') or q_trip.object == ('dog')):
         answer = '{}, {} does not have a {}.'
         new_subj_doc = q_trip.subject
         people = new_subj_doc[5:].capitalize()
