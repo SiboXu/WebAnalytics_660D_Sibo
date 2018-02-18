@@ -39,9 +39,9 @@ class Pet(object):
 
 
 class Trip(object):
-    def __init__(self):
-        self.departs_on = None
-        self.departs_to = None
+    def __init__(self, date, place=None):
+        self.date = date
+        self.place = place
 
 
 persons = []
@@ -93,12 +93,40 @@ def add_pet(type, name=None):
     return pet
 
 
+def select_trip(name):
+    for person in persons:
+        if person.name == name:
+            return person
+
+
+def add_trip(date, place=None):
+    trip = None
+
+    if place:
+        trip = select_trip(place)
+
+    if trip is None:
+        trip = Trip(date, place)
+        trips.append(trip)
+
+    return trip
+
+
 def get_persons_pet(person_name):
 
     person = select_person(person_name)
 
     for thing in person.has:
         if isinstance(thing, Pet):
+            return thing
+
+
+def get_persons_trip(person_name):
+
+    person = select_person(person_name)
+
+    for thing in person.travels:
+        if isinstance(thing, Trip):
             return thing
 
 
@@ -166,6 +194,37 @@ def process_relation_triplet(triplet):
             o.likes.append(s)
 
         return 'is'
+
+    if len([e.text for e in doc.ents if e.label_ == 'GPE' or 'DATE'])>= 2:
+        doc = nlp(unicode(sentence))
+        personnames = [entity.text for entity in doc.ents if entity.label_ == 'PERSON']
+        place = [str(entity.text) for entity in doc.ents if entity.label_ == 'GPE']
+        date = [str(entity.text) for entity in doc.ents if entity.label_ == 'DATE']
+        ref = []
+
+
+        if date == ref:
+            return False
+
+        else:
+            for x in date:
+                newdate = x
+        #date = [str(x) for x in date if date ]
+        # print (place[0])
+        # print (date)
+            for p in personnames:
+                o = add_person(p)
+                ptrip = add_trip(newdate,place[0])
+                o.travels.append(ptrip)
+
+            return 'ptrip'
+
+        # only one empty
+        # print ('yes')
+        # we need to get the date and location and person's name
+        # then restore them into travel
+
+
 
     # Process (PET, has, NAME)
 
@@ -236,7 +295,7 @@ def preprocess_question(question):
 
 def has_question_word(string):
     # note: there are other question words
-    for qword in ('who', 'what', 'does', 'do'):
+    for qword in ('who', 'what', 'does', 'do', 'when'):
         if qword in string.lower():
             return True
 
@@ -253,6 +312,7 @@ def main():
 
     for t in triples:
         r = process_relation_triplet(t)
+
     #   print(r)
 
 
@@ -260,21 +320,27 @@ def main():
 
     #print(pets)
 
+    traveldic = ['travel', 'fly', 'drive', 'go', 'visit']
+    #traveldic = {'travel to': 'take a trip',  # verbs here are lemmatized
+     #'fly to': 'take a trip',
+     #'drive to': 'take a trip',
+     #'go to': 'take a trip',
+     #}
 
 
 
+    question  = ' '
 
-    question = ' '
     while question[-1] != '?':
         question = raw_input("Please enter your question: ")
 
         if question[-1] != '?':
             print('This is not a question... please try again')
-
-    question = question.lower()
+    question2 = question
+    # question = question.lower()
     q_trip = cl.extract_triples([preprocess_question(question)])[0]
-    q_doc = nlp(unicode(preprocess_question(question)))
-
+    # q_doc = nlp(unicode((question)))
+    doc = nlp(unicode(question2))
 
     # (WHO, has, PET)
     # here's one just for dogs
@@ -310,33 +376,105 @@ def main():
 
 
 
-    # for this Does John have a cat? question
-    # we need to get the subject in the quesion and than, get_person_pet(person.name)==subject's name
+    # Does someone like someone else?
     elif (q_trip.object.startswith('like')) and (q_trip.subject == 'does'):
         answer = '{}, {} {} {}.'
-        # new_subj_doc = nlp(unicode(q_trip.subject))
-#       # new_subj_doc = nlp(unicode(q_doc.subject))
-        p1 = q_trip.predicate.capitalize()
-        p2 = q_trip.object[5:].capitalize()
-        host_person = [str(person.likes) for person in persons if person.name == p1][0]
+
+        doc = nlp(unicode(question2))
+        personnames = [entity.text for entity in doc.ents if entity.label_=='PERSON']
+        p1 = str(personnames[0])
+        p2 = str(personnames[1])
+        host_person = [str(person.likes) for person in persons if person.name == p1]
+
         if p2 in host_person:
             print (answer.format('Yes',p1,'likes', p2))
         else:
             print (answer.format('No', p1,'does not like', p2))
-       # if p2 in select_person(p1).likes:
-        #    print('yes')
-      #  else:
-        #    print ('no')
 
 
-        # people = [str(e.text) for e in q_doc.ents]
-#        new_subj_doc_childern = new_subj_doc[0].children
-        #people = str([t.text.capitalize() for t in new_subj_doc_childern])
-#        print (people)
+    # Who likes <person>?
+    elif (q_trip.subject == 'who') and (q_trip.predicate == 'likes'):
+        answer = '{} {} {}'
+
+        doc = nlp(unicode(question2))
+        personnames = [entity.text for entity in doc.ents if entity.label_ == 'PERSON']
+        p1 = str(personnames[0])
+        personlikep1 = []
+        for person in persons:
+            personlike = person.likes
+            for p in set(personlike):
+                if p1 == p.name:
+                    personlikep1.append(person.name)
+        ref = []
+
+        if personlikep1 != ref:
+            print (answer.format(' and '.join(personlikep1), 'likes',p1))
+        else:
+            print ('Sorry, we don\'t know.')
 
 
 
+    # Who does <person> like?
+    elif (q_trip.object == 'who') and (q_trip.predicate.endswith('like')):
+        answer = '{} {} {}'
 
+        # doc = nlp(unicode(question2))
+        personnames = [entity.text for entity in doc.ents if entity.label_ == 'PERSON']
+        p1 = str(personnames[0])
+        likes = [person.likes for person in persons if person.name == p1][0]
+        p1likes = [p.name for p in set(likes) ]
+        ref = []
+        if p1likes != ref:
+            print(answer.format(p1, 'likes', ' and '.join(p1likes)))
+        else:
+            print ('Sorry, we don\'t know.')
+
+
+
+    # Who is [going to | flying to | traveling to | visiting] < place >?
+    elif (str(t.lemma_) for t in doc if str(t.lemma) in traveldic ) and (q_trip.subject == 'who'):
+        answer = '{} {} {}'
+        persontrip = []
+        ref = []
+        qplace = [str(entity.text) for entity in doc.ents if entity.label_ == 'GPE']
+        for person in persons:
+            qtrip = get_persons_trip(person.name)
+            #print (person.travels.date)
+            if qtrip and ( qplace[0] in qtrip.place ):
+                persontrip.append(person.name)
+                # print (person.name)
+
+
+        if persontrip != ref:
+            print (answer.format(' and '.join(persontrip), 'is traveling to', qplace[0]))
+
+        else:
+            print ('Sorry, we don\'t know.')
+
+    # When is <person> [going to|flying to|traveling to|visiting] <place>?
+    elif (str(t.lemma_) for t in doc if str(t.lemma) in traveldic ) and (q_trip.object.endswith('When')):
+        answer = '{}, {} {} {}'
+        persontrip = []
+        ref = []
+        qname = [str(entity.text) for entity in doc.ents if entity.label_ == 'PERSON']
+        qplace = [str(entity.text) for entity in doc.ents if entity.label_ == 'GPE']
+        for person in persons:
+            if person.name in qname:
+                qtrip = get_persons_trip(person.name)
+            #print (person.travels.date)
+                if qplace[0] in qtrip.place :
+                    qtime = qtrip.date
+                    print (answer.format(qtime.capitalize(), qname[0], 'is traveling to', qplace[0]))
+
+
+        #if persontrip != ref:
+            #print (answer.format(' and '.join(persontrip), 'is traveling to', qplace[0]))
+
+        #else:
+            #print ('Sorry, we don\'t know.')
+
+
+    # Does <person> likes <Pet>?
     elif q_trip.subject.startswith('does') and ( q_trip.object == ('cat') or q_trip.object == ('dog')):
         answer = '{}, {} does not have a {}.'
         new_subj_doc = nlp(unicode(q_trip.subject))
@@ -356,6 +494,10 @@ def main():
 
         else:
             print (answer.format('No', people, q_trip.object))
+
+
+    else:
+        print('We don\'t have the material to answer the question.')
 
 
 
