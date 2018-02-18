@@ -20,21 +20,39 @@ def preprocess_question(question):
     return re.sub(re_spaces, ' ', ' '.join(q_words))
 
 
+def has_travel_word(string):
+
+    traveldic = ['traveling to', 'flying to', 'driving to', 'going to', 'visiting']
+    for tword in traveldic:
+        if tword in string:
+            str = string
+            str = str.replace(tword, 'traveling to')
+
+    return str
+
+
+
+traveldic = ['travel', 'fly', 'drive', 'go', 'visit']
 nlp = spacy.load('en')
-sen = 'when is Mary going to France?'
+sen = 'Who is going to France?'
 # Who is [going to | flying to | traveling to | visiting] < place >
 doc = nlp(unicode(sen))
 cl = ClausIE.get_instance()
 tri = cl.extract_triples([preprocess_question(sen)])
 for entity in doc.ents:
     print (entity.text, entity.label_)
+
+for t in tri:
+    print (str(t.lemma_.text) for t in doc if str(t.lemma) in traveldic)
 #    if entity.label_=='GPE':
  #       print(entity.text, entity.label_)
 
-sent = 'Sally is going to Mexico some time in 2020.'
+sent = 'Don\'t let Chris forget to take his medicine tomorrow.'
 cl = ClausIE.get_instance()
 triples = cl.extract_triples([sent])[0]
 sentence = triples.subject + ' ' + triples.predicate + ' ' + triples.object
 doc_new = nlp (unicode(sentence))
+for entity in doc_new.ents:
+    print (entity.text, entity.label_)
 
-
+print (has_travel_word(sen))
