@@ -47,12 +47,18 @@ for t in tri:
 #    if entity.label_=='GPE':
  #       print(entity.text, entity.label_)
 
-sent = 'Don\'t let Chris forget to take his medicine tomorrow.'
+sent = "Bob has a dog named Fido."
 cl = ClausIE.get_instance()
 triples = cl.extract_triples([sent])[0]
 sentence = triples.subject + ' ' + triples.predicate + ' ' + triples.object
 doc_new = nlp (unicode(sentence))
-for entity in doc_new.ents:
-    print (entity.text, entity.label_)
 
-print (has_travel_word(sen))
+petperson = [e.text for e in doc_new.ents if e.label_ == 'PERSON']
+print (petperson)
+for entity in doc_new.ents:
+   print (entity.text, entity.label_)
+
+#if ('dog' in triples.subject or 'cat' in triples.subject):
+ #   print('yes')
+
+#print (has_travel_word(sen))

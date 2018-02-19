@@ -172,11 +172,63 @@ def process_relation_triplet(triplet):
     - A person can own only one pet
     """
 
+    ##### Pet #####
+
+    # Process (PET, has, NAME)
+    if ('dog' in triplet.subject or 'cat' in triplet.subject):
+        if triplet.subject.endswith('name') and ('dog' in triplet.subject or 'cat' in triplet.subject):
+            # below is the original syntax for span
+            # obj_span = doc.char_span(sentence.find(triplet.object), len(sentence))
+            # using chunks to get compound names
+
+            chunks = list(doc.noun_chunks)[-1].root.text
+            petdoc = nlp(chunks)
+            obj_span = petdoc.char_span(0,len(chunks))
+
+            # handle single names, but what about compound names? Noun chunks might help.
+            if len(obj_span) == 1 and obj_span[0].pos_ == 'PROPN':
+                name = triplet.object
+                subj_start = sentence.find(triplet.subject)
+                subj_doc = doc.char_span(subj_start, subj_start + len(triplet.subject))
+
+                s_people = [token.text for token in subj_doc if token.ent_type_ == 'PERSON']
+                assert len(s_people) == 1
+                s_person = select_person(s_people[0])
+
+                s_pet_type = 'dog' if 'dog' in triplet.subject or ('dog' in triplet.object) else 'cat'
+
+                pet = add_pet(s_pet_type, name)
+
+                s_person.has.append(pet)
+
+            return 'pet'
+
+    # Process (PERSON, has PET, NAME)
+    if ('dog' in triplet.object or 'cat' in triplet.object) and 'name' in triplet.object:
+        ownername= triplet.subject
+        chunks = list(doc.noun_chunks)[-1].root.text
+        petdoc = nlp(unicode(triplet.object))
+        named_token = [t for t in petdoc if t.text == 'named'][0]
+        petname = [str(c.text) for c in named_token.subtree][1:]
+        petname = ' '.join(petname)
+        pet_type = 'dog' if 'dog' in triplet.object else 'cat'
+        # ref = []
+
+        pet_person = select_person(ownername)
+
+        pet = add_pet(pet_type, petname)
+
+        pet_person.has.append(pet)
+
+        return 'pet'
+
+
+
     ##### Like #####
 
     # Process (PERSON, likes, PERSON) relations
     if root.lemma_ == 'like' and ("does n" not in triplet.predicate):
-        if triplet.subject in [e.text for e in doc.ents if e.label_ == 'PERSON'] and triplet.object in [e.text for e in doc.ents if e.label_ == 'PERSON']:
+        if triplet.subject in [e.text for e in doc.ents if (e.label_ == 'PERSON') or (e.label_ =='ORG')] and triplet.object in [e.text for e in doc.ents if e.label_ == 'PERSON']:
             s = add_person(triplet.subject)
             o = add_person(triplet.object)
             s.likes.append(o)
@@ -236,7 +288,6 @@ def process_relation_triplet(triplet):
         date = [str(entity.text) for entity in doc.ents if entity.label_ == 'DATE']
         ref = []
 
-
         if date == ref:
             return False
 
@@ -252,53 +303,6 @@ def process_relation_triplet(triplet):
             return 'ptrip'
 
 
-
-
-    # Process (PET, has, NAME)
-    if ('dog' in triplet.subject or 'cat' in triplet.subject):
-
-        # process (PET, has, NAME)
-        if triplet.subject.endswith('name') and ('dog' in triplet.subject or 'cat' in triplet.subject):
-            # below is the original syntax for span
-            # obj_span = doc.char_span(sentence.find(triplet.object), len(sentence))
-            # using chunks to get compound names
-
-            chunks = list(doc.noun_chunks)[-1].root.text
-            petdoc = nlp(chunks)
-            obj_span = petdoc.char_span(0,len(chunks))
-
-            # handle single names, but what about compound names? Noun chunks might help.
-            if len(obj_span) == 1 and obj_span[0].pos_ == 'PROPN':
-                name = triplet.object
-                subj_start = sentence.find(triplet.subject)
-                subj_doc = doc.char_span(subj_start, subj_start + len(triplet.subject))
-
-                s_people = [token.text for token in subj_doc if token.ent_type_ == 'PERSON']
-                assert len(s_people) == 1
-                s_person = select_person(s_people[0])
-
-                s_pet_type = 'dog' if 'dog' in triplet.subject or ('dog' in triplet.object) else 'cat'
-
-                pet = add_pet(s_pet_type, name)
-
-                s_person.has.append(pet)
-
-            return 'pet'
-
-
-
-    if ('dog' in triplet.object or 'cat' in triplet.object):
-        ownername= triplet.subject
-        if ownername not in persons:
-            add_person(ownername)
-
-        s_person = select_person(ownername)
-        if s_person.has == []:
-            pet_pet_type = 'dog' if 'dog' in triplet.object else 'cat'
-            s_person.has.append(pet_pet_type)
-
-        else:
-            return 'pet'
 
     else:
         return False
@@ -339,6 +343,12 @@ def has_travel_word(string):
 
     return str
 
+def process_what_petname_question(string):
+    cl = ClausIE.get_instance()
+    str = string.replace('What\'s', '').strip()
+    triples = cl.extract_triples([str])[0]
+    w_quetsion = triples.subject + ' ' + triples.predicate + ' ' + triples.object + ' ' + 'name'
+    return w_quetsion
 
 
 def main():
@@ -360,6 +370,11 @@ def main():
         if question[-1] != '?':
             print('This is not a question... please try again')
 
+
+    if question.startswith('What\'s'):
+        question = preprocess_question(question)
+        question = process_what_petname_question(question)
+
     question = has_travel_word(question)
     question2 = question
     q_trip = cl.extract_triples([preprocess_question(question)])[0]
@@ -368,38 +383,54 @@ def main():
 
     # for different question, get different information
 
+
+    #######                           #######
+    ####### question related to pet   #######
+    #######                           #######
+
     # (WHO, has, PET)
     # here's one just for dogs
     if q_trip.subject.lower() == 'who' and q_trip.object == 'dog':
         answer = '{} has a {}.'
 
         for person in persons:
-            pet = person.has
-            if 'dog' in pet:
+            pet = get_persons_pet(person.name)
+            if pet and pet.type == 'dog':
                 print(answer.format(person.name, 'dog'))
 
     elif q_trip.subject.lower() == 'who' and q_trip.object == 'cat':
         answer = '{} has a {}.'
 
         for person in persons:
-            pet = person.has
-            if 'cat' in pet:
+            pet = get_persons_pet(person.name)
+            if pet and pet.type == 'cat':
                 print(answer.format(person.name, 'cat'))
 
 
-    # here's one for cats
-    elif q_trip.subject.lower() == 'who' and q_trip.object == 'cat':
-        answer = '{} has a {}.'
+    # What's the name of <person>'s <pet_type>? (e.g. What's the name of Mike's dog?)
+    elif q_trip.object.endswith('name'):
+        answer = '{}\'s {}\'s name is {}.'
+        petperson = q_trip.subject
+        pet_type = 'dog' if 'dog' in q_trip.object else 'cat'
+        ref = []
+        petname = ''
 
         for person in persons:
             pet = get_persons_pet(person.name)
-            if pet and pet.type == 'cat':
-                print (answer.format(person.name, 'cat'))
+            if person.name == petperson and pet:
+                petname = pet.name
+                if pet.type == pet_type:
+                    print (answer.format(petperson, pet_type, petname))
+                else:
+                    print(person.name +' ' + 'doesn\'t have a'+ ' ' + pet_type + '.')
+
+        if petname == '' or None:
+            print('Sorry, we don\'t know.')
 
 
-    #######...........................#######
-    ####### question related to trip  #######
-    #######...........................#######
+    #######                           #######
+    ####### question related to like  #######
+    #######                           #######
 
 
     # Does someone like someone else?
