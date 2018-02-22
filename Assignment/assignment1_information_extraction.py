@@ -483,8 +483,12 @@ def answer_question(question=' '):
         print('My answer for this question:')
         personnames = [entity.text for entity in doc.ents if entity.label_ == 'PERSON']
         p1 = str(personnames[0])
-        likes = [person.likes for person in persons if person.name == p1][0]
-        p1likes = [p.name for p in set(likes) ]
+        p1likes = []
+        for person in persons:
+            if person .likes and person.name == p1:
+                likes = [person.likes for person in persons if person.name == p1][0]
+                p1likes = [p.name for p in set(likes)]
+
         ref = []
 
         if p1likes != ref:
@@ -526,13 +530,15 @@ def answer_question(question=' '):
         ref = []
         qname = [str(entity.text) for entity in doc.ents if entity.label_ == 'PERSON']
         qplace = [str(entity.text) for entity in doc.ents if entity.label_ == 'GPE']
+        qtime = []
         for person in persons:
-            if person.name in qname:
-                qtrip = [t for t in person.travels if t.place[0] == qplace[0]][0]
-            #print (person.travels.date)
-
-                qtime = qtrip.date
-                print (answer.format(qtime.capitalize(), qname[0], 'is traveling to', qplace[0]))
+            if person.name == qname[0]:
+                for t in person.travels:
+                    if t and t.place[0] == qplace[0]:
+                        qtrip = t
+                        qtime = qtrip.date
+                        if qtime != ref:
+                            print (answer.format(qtime.capitalize(), qname[0], 'is traveling to', qplace[0]))
         if qtime == ref:
             print( 'Sorry, we don\'t know!')
         print('\n')
