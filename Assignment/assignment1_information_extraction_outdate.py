@@ -168,32 +168,56 @@ def process_relation_triplet(triplet):
         return 'is'
 
     # Process (PET, has, NAME)
-    if triplet.subject.endswith('name') and ('dog' in triplet.subject or 'cat' in triplet.subject):
-        # below is the original syntax for span
-        # obj_span = doc.char_span(sentence.find(triplet.object), len(sentence))
-        # using chunks to get compound names
 
-        chunks = list(doc.noun_chunks)[-1].root.text
-        petdoc = nlp(chunks)
-        obj_span = petdoc.char_span(0,len(chunks))
+    if ('dog' in triplet.subject or 'cat' in triplet.subject):
+        #print ('yes')
 
-        # handle single names, but what about compound names? Noun chunks might help.
-        if len(obj_span) == 1 and obj_span[0].pos_ == 'PROPN':
-            name = triplet.object
-            subj_start = sentence.find(triplet.subject)
-            subj_doc = doc.char_span(subj_start, subj_start + len(triplet.subject))
+        # process (PET, has, NAME)
+        if triplet.subject.endswith('name') and ('dog' in triplet.subject or 'cat' in triplet.subject):
+            # below is the original syntax for span
+            # obj_span = doc.char_span(sentence.find(triplet.object), len(sentence))
+            # using chunks to get compound names
 
-            s_people = [token.text for token in subj_doc if token.ent_type_ == 'PERSON']
-            assert len(s_people) == 1
-            s_person = select_person(s_people[0])
+            chunks = list(doc.noun_chunks)[-1].root.text
+            petdoc = nlp(chunks)
+            obj_span = petdoc.char_span(0,len(chunks))
 
-            s_pet_type = 'dog' if 'dog' in triplet.subject else 'cat'
+            # handle single names, but what about compound names? Noun chunks might help.
+            if len(obj_span) == 1 and obj_span[0].pos_ == 'PROPN':
+                name = triplet.object
+                subj_start = sentence.find(triplet.subject)
+                subj_doc = doc.char_span(subj_start, subj_start + len(triplet.subject))
 
-            pet = add_pet(s_pet_type, name)
+                s_people = [token.text for token in subj_doc if token.ent_type_ == 'PERSON']
+                assert len(s_people) == 1
+                s_person = select_person(s_people[0])
 
-            s_person.has.append(pet)
+                s_pet_type = 'dog' if 'dog' in triplet.subject or ('dog' in triplet.object) else 'cat'
 
-        return 'pet'
+                pet = add_pet(s_pet_type, name)
+
+                s_person.has.append(pet)
+
+            return 'pet'
+
+
+
+    if ('dog' in triplet.object or 'cat' in triplet.object):
+        ownername= triplet.subject
+        if ownername not in persons:
+            add_person(ownername)
+
+        s_person = select_person(ownername)
+        if s_person.has == []:
+            pet_pet_type = 'dog' if 'dog' in triplet.object else 'cat'
+            s_person.has.append(pet_pet_type)
+
+        else:
+            return 'pet'
+
+    else:
+        return False
+
 
 def preprocess_question(question):
     # remove articles: a, an, the
@@ -229,7 +253,7 @@ def main():
 
     for t in triples:
         r = process_relation_triplet(t)
-        print(r)
+    #   print(r)
 
 
     #print(persons)
@@ -249,45 +273,80 @@ def main():
 
     question = question.lower()
     q_trip = cl.extract_triples([preprocess_question(question)])[0]
+    q_doc = nlp(unicode(preprocess_question(question)))
 
-    # person_name = q_trip.subject.name
-    # print(person_name)
 
-    # print(q_trip.subject.label=='PROPN')
     # (WHO, has, PET)
     # here's one just for dogs
+
+
     if q_trip.subject.lower() == 'who' and q_trip.object == 'dog':
-        answer = '{} has a {} named {}.'
+        answer = '{} has a {}.'
 
         for person in persons:
-            pet = get_persons_pet(person.name)
-            if pet and pet.type == 'dog':
-                print(answer.format(person.name, 'dog', pet.name))
+            pet = person.has
+            if 'dog' in pet:
+                print(answer.format(person.name, 'dog'))
+
+    elif q_trip.subject.lower() == 'who' and q_trip.object == 'cat':
+        answer = '{} has a {}.'
+
+        for person in persons:
+            pet = person.has
+            if 'cat' in pet:
+                print(answer.format(person.name, 'cat'))
+
 
     # here's one for cats
     elif q_trip.subject.lower() == 'who' and q_trip.object == 'cat':
-        answer = '{} has a {} named {}.'
+        answer = '{} has a {}.'
 
         for person in persons:
             pet = get_persons_pet(person.name)
             if pet and pet.type == 'cat':
-                print (answer.format(person.name, 'cat', pet.name))
+                print (answer.format(person.name, 'cat'))
+
+
+
+
 
     # for this Does John have a cat? question
     # we need to get the subject in the quesion and than, get_person_pet(person.name)==subject's name
-    elif q_trip.subject.startswith('does') and q_trip.object == ('cat' or 'dog'):
+    elif (q_trip.object.startswith('like')) and (q_trip.subject == 'does'):
+        answer = '{}, {} {} {}.'
+        # new_subj_doc = nlp(unicode(q_trip.subject))
+#       # new_subj_doc = nlp(unicode(q_doc.subject))
+        p1 = q_trip.predicate.capitalize()
+        p2 = q_trip.object[5:].capitalize()
+        host_person = [str(person.likes) for person in persons if person.name == p1][0]
+        if p2 in host_person:
+            print (answer.format('Yes',p1,'likes', p2))
+        else:
+            print (answer.format('No', p1,'does not like', p2))
+       # if p2 in select_person(p1).likes:
+        #    print('yes')
+      #  else:
+        #    print ('no')
+
+
+        # people = [str(e.text) for e in q_doc.ents]
+#        new_subj_doc_childern = new_subj_doc[0].children
+        #people = str([t.text.capitalize() for t in new_subj_doc_childern])
+#        print (people)
+
+
+
+
+    elif q_trip.subject.startswith('does') and ( q_trip.object == ('cat') or q_trip.object == ('dog')):
         answer = '{}, {} does not have a {}.'
-        new_subj_doc = q_trip.subject
-        people = new_subj_doc[5:].capitalize()
-        #new_subj_doc = nlp(unicode(q_trip.subject))
-        #name_doc = new_subj_doc.char_span(0, len(q_trip.subject))
-       # people = [token.text for token in name_doc if token.ent_type_ == 'PERSON']
-        # print (people)
+        new_subj_doc = nlp(unicode(q_trip.subject))
+        #people = new_subj_doc[5:].capitalize()
+        # ents = list(new_subj_doc.ents)
+        # people = [ents[i].text for i in range(len(ents)) if ents[i].label_=='PERSON']
+        new_subj_doc_childern = new_subj_doc[0].children
+        people = str([t.text.capitalize() for t in new_subj_doc_childern])
 
 
-       # s_people = [token.text for token in subj_doc if token.ent_type_ == 'PERSON']
-
-        # for person in persons:
         if people in persons:
             pet = get_persons_pet(people)
             if q_trip.object == pet:
@@ -297,31 +356,9 @@ def main():
 
         else:
             print (answer.format('No', people, q_trip.object))
-#            pet =get_persons_pet(person.name)
- #           if pet and pet.type == 'cat':
-  #              print (answer.format('Yes', person.name, 'cat'))
-#
- #           else:
-  #              print (answer.format('No', person.name, 'cat'))
+
 
 
 if __name__ == '__main__':
     main()
 
-    if len([e.text for e in doc.ents if e.label_ == 'GPE']) == 1:
-        doc = nlp(unicode(sentence))
-        personname = [e.text for e in doc.ents if e.label_ == 'PERSON' or e.label_ == 'ORG']
-        place = [str(e.text) for e in doc.ents if e.label_ == 'GPE']
-        date = 'TBD'
-        for person in personname:
-            p = add_person(person)
-            travel = get_persons_trip(p.name)
-            if not travel:
-                trip = add_trip(date, place)
-                p.travels.append(trip)
-            elif travel.place != place:
-                trip = add_trip(date, place)
-                p.travels.append(trip)
-                return 'trip without date'
-            else:
-                return False

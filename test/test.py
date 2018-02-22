@@ -47,7 +47,7 @@ for t in tri:
 #    if entity.label_=='GPE':
  #       print(entity.text, entity.label_)
 
-sent = "Bob has a dog named Fido."
+sent = "Sally is going to Mexico some time in 2020."
 cl = ClausIE.get_instance()
 triples = cl.extract_triples([sent])[0]
 sentence = triples.subject + ' ' + triples.predicate + ' ' + triples.object

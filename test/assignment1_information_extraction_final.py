@@ -6,8 +6,9 @@ from pyclausie import ClausIE
 
 
 nlp = spacy.load('en')
-re_spaces = re.compile(r'\s+')
+cl = ClausIE.get_instance()
 
+re_spaces = re.compile(r'\s+')
 
 class Person(object):
     def __init__(self, name, likes=None, has=None, travels=None):
@@ -47,11 +48,11 @@ class Trip(object):
 persons = []
 pets = []
 trips = []
-
+root = None
 
 def get_data_from_file(file_path='./chatbot_data.txt'):
     with open(file_path) as infile:
-        cleaned_lines = [line.strip() for line in infile if not line.startswith(('$$$', '###', '===', "Don't"))]
+        cleaned_lines = [line.strip() for line in infile if not line.startswith(('$$$', '###', '==='))]
 
     return cleaned_lines
 
@@ -152,7 +153,7 @@ def process_relation_triplet(triplet):
     sentence = triplet.subject + ' ' + triplet.predicate + ' ' + triplet.object
 
     doc = nlp(unicode(sentence))
-
+    global root
     for t in doc:
         if t.pos_ == 'VERB' and t.head == t:
             root = t
@@ -246,6 +247,8 @@ def process_relation_triplet(triplet):
         fw_all = ' '.join(fw_who2)
         fw_2 = fw_all.split(' ')
 
+
+        # more than three peoples are friends in the same sentence
         if len(fw_all) > 2:
             fw_who = fw_2
             s = add_person(triplet.subject)
@@ -281,7 +284,7 @@ def process_relation_triplet(triplet):
     ##### Trip #####
 
     # Process (PERSON, depart_to, depart_on)
-    if len([e.text for e in doc.ents if e.label_ == 'GPE' or 'DATE'])>= 2:
+    if len([e.text for e in doc.ents if e.label_ == 'GPE' or e.label_ == 'DATE'])>= 2:
         doc = nlp(unicode(sentence))
         personnames = [entity.text for entity in doc.ents if entity.label_ == 'PERSON' or entity.label_ =='ORG']
         place = [str(entity.text) for entity in doc.ents if entity.label_ == 'GPE']
@@ -291,13 +294,14 @@ def process_relation_triplet(triplet):
         if date == ref:
             return False
 
+
         else:
             for x in date:
                 newdate = x
 
             for p in personnames:
                 o = add_person(p)
-                ptrip = add_trip(newdate,place)
+                ptrip = add_trip( newdate,place)
                 o.travels.append(ptrip)
 
             return 'ptrip'
@@ -351,8 +355,8 @@ def process_what_petname_question(string):
     return w_quetsion
 
 
-def main():
-    sents = get_data_from_file()
+def process_data_from_input_file(path='assignment_01.data'):
+    sents = get_data_from_file(path)
 
     cl = ClausIE.get_instance()
 
@@ -361,8 +365,7 @@ def main():
     for t in triples:
         r = process_relation_triplet(t)
 
-
-    question  = ' '
+def answer_question(question=' '):
 
     while question[-1] != '?':
         question = raw_input("Please enter your question: ")
@@ -391,20 +394,20 @@ def main():
     # (WHO, has, PET)
     # here's one just for dogs
     if q_trip.subject.lower() == 'who' and q_trip.object == 'dog':
-        answer = '{} has a {}.'
+        answer = '{} has a {} named {}.'
 
         for person in persons:
             pet = get_persons_pet(person.name)
             if pet and pet.type == 'dog':
-                print(answer.format(person.name, 'dog'))
+                print(answer.format(person.name, 'dog', pet.name))
 
     elif q_trip.subject.lower() == 'who' and q_trip.object == 'cat':
-        answer = '{} has a {}.'
+        answer = '{} has a {} named {}.'
 
         for person in persons:
             pet = get_persons_pet(person.name)
             if pet and pet.type == 'cat':
-                print(answer.format(person.name, 'cat'))
+                print(answer.format(person.name, 'cat', pet.name))
 
 
     # What's the name of <person>'s <pet_type>? (e.g. What's the name of Mike's dog?)
@@ -496,12 +499,10 @@ def main():
         ref = []
         qplace = [str(entity.text) for entity in doc.ents if entity.label_ == 'GPE']
         for person in persons:
-            qtrip = get_persons_trip(person.name)
-
-            if qtrip and ( qplace[0] in qtrip.place ):
-                persontrip.append(person.name)
-
-
+            if person.travels:
+                for t in person.travels:
+                    if t and ( qplace[0] in t.place ):
+                            persontrip.append(person.name)
 
         if persontrip != ref:
             print (answer.format(' and '.join(persontrip), 'is traveling to', qplace[0]))
@@ -518,11 +519,13 @@ def main():
         qplace = [str(entity.text) for entity in doc.ents if entity.label_ == 'GPE']
         for person in persons:
             if person.name in qname:
-                qtrip = get_persons_trip(person.name)
+                qtrip = [t for t in person.travels if t.place[0] == qplace[0]][0]
             #print (person.travels.date)
-                if qplace[0] in qtrip.place :
-                    qtime = qtrip.date
-                    print (answer.format(qtime.capitalize(), qname[0], 'is traveling to', qplace[0]))
+
+                qtime = qtrip.date
+                print (answer.format(qtime.capitalize(), qname[0], 'is traveling to', qplace[0]))
+        if qtime == ref:
+            print( 'Sorry, we don\'t know!')
 
 
     # Does <person> likes <Pet>?
@@ -549,6 +552,12 @@ def main():
 
     else:
         print('We don\'t have the material to answer the question.')
+
+
+
+def main():
+    process_data_from_input_file()
+    answer_question()
 
 
 
