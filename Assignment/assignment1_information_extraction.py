@@ -340,12 +340,10 @@ def has_travel_word(string):
     # replace trip word into 'travel to' for all question.
     traveldic = ['traveling to', 'flying to', 'driving to', 'going to', 'visiting']
     for tword in traveldic:
-        try:
-            str = string.replace(tword, 'traveling to')
-        except:
-            pass
+        if tword in string:
+            qqstr = string.replace(tword, 'traveling to')
 
-    return str
+            return qqstr
 
 def process_what_petname_question(string):
     cl = ClausIE.get_instance()
@@ -366,7 +364,7 @@ def process_data_from_input_file(path='assignment_01.data'):
         r = process_relation_triplet(t)
 
 def answer_question(question=' '):
-
+    traveldic = ['traveling to', 'flying to', 'driving to', 'going to', 'visiting']
     while question[-1] != '?':
         question = raw_input("Please enter your question: ")
 
@@ -378,7 +376,10 @@ def answer_question(question=' '):
         question = preprocess_question(question)
         question = process_what_petname_question(question)
 
-    question = has_travel_word(question)
+    for tword in traveldic:
+        if tword in question:
+            question = has_travel_word(question)
+
     question2 = question
     q_trip = cl.extract_triples([preprocess_question(question)])[0]
     doc = nlp(unicode(question2))
@@ -456,7 +457,7 @@ def answer_question(question=' '):
         print('\n')
 
     # Who likes <person>?
-    elif (q_trip.subject.lower() == 'who') and (q_trip.predicate == 'likes'):
+    elif (q_trip.subject.lower() == 'who') and (q_trip.predicate == 'likes') and [entity.text for entity in doc.ents if entity.label_ == 'PERSON']:
         answer = '{} {} {}.'
         print('My answer for this question:')
         doc = nlp(unicode(question2))
@@ -503,7 +504,7 @@ def answer_question(question=' '):
 
 
     # Who is [going to | flying to | traveling to | visiting] < place >?
-    elif (str(t.lemma_) for t in doc if str(t.lemma) == 'travel' ) and (q_trip.subject.lower() == 'who'):
+    elif q_trip.predicate == 'is traveling' and (q_trip.subject.lower() == 'who'):
         answer = '{} {} {}.'
         print('My answer for this question:')
         persontrip = []
@@ -524,7 +525,7 @@ def answer_question(question=' '):
         print('\n')
 
     # When is <person> [going to|flying to|traveling to|visiting] <place>?
-    elif (str(t.lemma_) for t in doc if str(t.lemma) == 'travel' ) and (q_trip.object.endswith('When')):
+    elif (str(t.lemma_) for t in doc if str(t.lemma_) == 'travel' ) and q_trip.object.endswith('When'):
         answer = '{}, {} {} {}.'
         print('My answer for this question:')
         ref = []
