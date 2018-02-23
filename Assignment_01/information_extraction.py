@@ -5,6 +5,7 @@ import spacy
 from pyclausie import ClausIE
 
 
+
 nlp = spacy.load('en')
 cl = ClausIE.get_instance()
 
