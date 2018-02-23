@@ -447,12 +447,17 @@ def answer_question(question=' '):
         personnames = [entity.text for entity in doc.ents if entity.label_=='PERSON']
         p1 = str(personnames[0])
         p2 = str(personnames[1])
+        pp2 = select_person(p2)
         host_person = [str(person.likes) for person in persons if person.name == p1]
+        if host_person and pp2:
+            if p2 in host_person[0]:
+                print (answer.format('Yes',p1,'likes', p2))
+            else:
+                print (answer.format('No', p1,'does not like', p2))
 
-        if p2 in host_person[0]:
-            print (answer.format('Yes',p1,'likes', p2))
         else:
-            print (answer.format('No', p1,'does not like', p2))
+            print('Sorry, we don\'t know.')
+
         print('\n')
 
     # Who likes <person>?
@@ -545,6 +550,7 @@ def answer_question(question=' '):
 
 
     else:
+        print('My answer for this question:')
         print('We don\'t have the material to answer the question.')
         print('\n')
 
