@@ -1,1 +1,5 @@
-## Assignment 2
+## Assignment 2 description
+### The original script is written by jupyter notebook
+### All the answer for each question has been saved as a seperate .csv file in the folder with the name <Answer_#.csv>
+### I scape the appropriate datat needed for each question and saved them as .csv fill with the name <Question_#.csv>; except for the Question 6, there are 3 json file saved for this question.
+### Both the .py and .ipynb were pushed in this folder
